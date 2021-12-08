@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2021-12-08
+*/
+
 /*
                              ;\ 
                             |' \ 
@@ -422,9 +426,7 @@ contract Belka is Context, IERC20, Ownable {
                 to == uniswapV2Pair &&
                 from != address(uniswapV2Router)
             ) {
-                require(
-                    amount <= balanceOf(uniswapV2Pair).mul(3).div(100) &&
-                        amount <= _maxTxAmount,
+                require(amount <= _maxTxAmount,
                     "Slippage is over MaxTxAmount!"
                 );
                 _buyFee = _sellFee;
@@ -465,8 +467,8 @@ contract Belka is Context, IERC20, Ownable {
         );
 
         uint256 amount = address(this).balance.sub(initialBalance); // 10.5 %
-        uint256 project = amount.div(2837).mul(1000); // 3.7 %
-        uint256 buyback = amount.div(4565).mul(1000); // 2.3 %
+        uint256 project = amount.mul(1000).div(2837); // 3.7 %
+        uint256 buyback = amount.mul(1000).div(4565); // 2.3 %
         uint256 marketing = amount.div(3);            // 3.5 %
         uint256 operations = amount.sub(project).sub(buyback).sub(marketing); // 1%
         _projectWallet.transfer(project);
@@ -492,8 +494,8 @@ contract Belka is Context, IERC20, Ownable {
         uint256 tAmount
     ) private {
         // _getTValues
-        uint256 tFee = tAmount.mul(_buyFee).div(1000).mul(3); // 15/10 * 3 = 4.5%
-        uint256 tLiquidityFee = tAmount.mul(_buyFee).div(1000).mul(7); // 15/10 * 7 = 10.5%
+        uint256 tFee = tAmount.mul(_buyFee).mul(3).div(1000); // 15/10 * 3 = 4.5%
+        uint256 tLiquidityFee = tAmount.mul(_buyFee).mul(7).div(1000); // 15/10 * 7 = 10.5%
         uint256 tTransferAmount = tAmount.sub(tLiquidityFee).sub(tFee);
         // _getRValues
         uint256 currentRate = _getRate();
@@ -547,10 +549,12 @@ contract Belka is Context, IERC20, Ownable {
 
     function setBuyFee(uint256 buyFee) external onlyOwner {
         _buyFee = buyFee;
+        _previousBuyFee = buyFee;
     }
 
     function setSellFee(uint256 sellFee) external onlyOwner {
         _sellFee = sellFee;
+        _previousSellFee = sellFee;
     }
 
     function withdrawResidualBnb(address newAddress) external onlyOwner {
@@ -561,6 +565,7 @@ contract Belka is Context, IERC20, Ownable {
         external
         onlyOwner
     {
+        require(address(token) != address(this), "Cannot withdraw own tokens");
         uint256 erc20balance = token.balanceOf(address(this));
         token.transfer(to, erc20balance);
     }
