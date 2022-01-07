@@ -4,6 +4,7 @@ Welcome to Belka, the Biggest Animal Welfare Project.
 Address:  [0x1b4d8c89a2120ce3d70a9d1e0e054fbf50d3143b](https://bscscan.com/address/0x1b4d8c89a2120ce3d70a9d1e0e054fbf50d3143b#code)
 
 Name:     Belka
+Ticker:   BLC
 
 Website:  [https://belkaproject.io/](https://belkaproject.io/)
 
