@@ -13,5 +13,5 @@ Facebook: [https://www.facebook.com/Belka-Coin-102382505489594](https://www.face
 
 Instagram: [https://www.instagram.com/belkacoin_official/](https://www.instagram.com/belkacoin_official/)
 
-Telegram: [https://t.me/belkacoin_official](https://t.me/belkacoin_official)
+Telegram: [https://t.me/belkacoinproject](https://t.me/belkacoinproject)
 
