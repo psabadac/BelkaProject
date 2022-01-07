@@ -9,7 +9,7 @@ Ticker:   BLC
 
 Website:  [https://belkaproject.io/](https://belkaproject.io/)
 
-Twitter:  [https://twitter.com/belka_coin](https://twitter.com/belka_coin)
+Twitter:  [https://twitter.com/belka_project](https://twitter.com/belka_project)
 
 Facebook: [https://www.facebook.com/Belka-Coin-102382505489594](https://www.facebook.com/Belka-Coin-102382505489594)
 
