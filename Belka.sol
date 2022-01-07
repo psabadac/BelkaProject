@@ -1,5 +1,5 @@
 /**
- *Submitted for verification at BscScan.com on 2021-12-08
+ *Submitted for verification at BscScan.com on 2021-12-18
 */
 
 /*
@@ -26,7 +26,7 @@
                    '`      ,' 
                         ,-' 
 
-          Website: https://belkaproject.com/
+          Website: https://belkaproject.io/
          Telegram: https://t.me/belkacoin_official
 */
 
@@ -189,22 +189,23 @@ interface IUniswapV2Router02 {
         );
 }
 
-contract Belka is Context, IERC20, Ownable {
+contract BelkaCoin is Context, IERC20, Ownable {
     using SafeMath for uint256;
-    string private constant _name = unicode"Belka";
-    string private constant _symbol = "BLK";
+    string private constant _name = unicode"BelkaCoin";
+    string private constant _symbol = "BLC";
     uint8 private constant _decimals = 9;
     mapping(address => uint256) private _rOwned;
     mapping(address => uint256) private _tOwned;
     mapping(address => mapping(address => uint256)) private _allowances;
     mapping(address => bool) public _isExcludedFromFee;
     uint256 private constant MAX = ~uint256(0);
-    uint256 private constant numTokensSellToAddToLiquidity = 250000 * 10**9;
+    bool public swapAndLiquifyEnabled = true;
+    uint256 public numTokensSellToAddToLiquidity = 30 * 10**13;
     uint256 private constant _tTotal = 1000000000 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
-    uint256 public _buyFee = 15;
+    uint256 public _buyFee = 5;
     uint256 private _previousBuyFee = _buyFee;
 
     uint256 public _sellFee = 15;
@@ -221,6 +222,10 @@ contract Belka is Context, IERC20, Ownable {
     address private uniswapV2Pair;
     bool private inSwap = false;
     uint256 public _maxTxAmount = _tTotal;
+    event SellFeeUpdated(uint256 newSellFee);
+    event BuyFeeUpdated(uint256 newBuyFee);
+    event NumTokensSoldUpdated(uint256 numTokensSellToAddToLiquidity);
+    event SwapAndLiquifyEnabledUpdated(bool enabled);
     event MaxTxAmountUpdated(uint256 _maxTxAmount);
     modifier lockTheSwap() {
         inSwap = true;
@@ -273,6 +278,10 @@ contract Belka is Context, IERC20, Ownable {
 
     function balanceOf(address account) public view override returns (uint256) {
         return tokenFromReflection(_rOwned[account]);
+    }
+
+    function humanBalanceOf(address account) public view returns (uint256) {
+        return balanceOf(account).div(10**9);
     }
 
     function transfer(address recipient, uint256 amount)
@@ -359,19 +368,6 @@ contract Belka is Context, IERC20, Ownable {
         return rAmount.div(currentRate);
     }
 
-    function removeAllFee() private {
-        if (_buyFee == 0 && _sellFee == 0) return;
-        _previousBuyFee = _buyFee;
-        _previousSellFee = _sellFee;
-        _buyFee = 0;
-        _sellFee = 0;
-    }
-
-    function restoreAllFee() private {
-        _buyFee = _previousBuyFee;
-        _sellFee = _previousSellFee;
-    }
-
     function setRemoveAllFee() external onlyOwner {
         if (_buyFee == 0 && _sellFee == 0) return;
         _previousBuyFee = _buyFee;
@@ -404,7 +400,8 @@ contract Belka is Context, IERC20, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
-        bool takeFee = false;
+        // transfer between wallets is not commisioned
+        uint256 currentFee = 0;
 
         if (from != owner() && to != owner()) {
             // buy handler
@@ -415,9 +412,9 @@ contract Belka is Context, IERC20, Ownable {
             ) {
                 require(
                     amount <= _maxTxAmount,
-                    "Amount larger than max tx amount!"
+                    "Over MaxTxAmount!"
                 );
-                takeFee = true;
+                currentFee = _buyFee;
             }
 
             // sell handler
@@ -427,25 +424,24 @@ contract Belka is Context, IERC20, Ownable {
                 from != address(uniswapV2Router)
             ) {
                 require(amount <= _maxTxAmount,
-                    "Slippage is over MaxTxAmount!"
+                    "Over MaxTxAmount!"
                 );
-                _buyFee = _sellFee;
-                takeFee = true;
+                currentFee = _sellFee;
+
                 uint256 contractTokenBalance = balanceOf(address(this));
                 bool overMinTokenBalance = contractTokenBalance >=
                     numTokensSellToAddToLiquidity;
-                if (overMinTokenBalance) {
+                if (overMinTokenBalance && swapAndLiquifyEnabled) {
                     swapTokensForEth(numTokensSellToAddToLiquidity);
                 }
             }
         }
 
         if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
-            takeFee = false;
+            currentFee = 0;
         }
 
-        _tokenTransfer(from, to, amount, takeFee);
-        restoreAllFee();
+        _transferStandard(from, to, amount, currentFee);
     }
 
     function swapTokensForEth(uint256 tokenAmount) private lockTheSwap {
@@ -477,25 +473,15 @@ contract Belka is Context, IERC20, Ownable {
         _operationsWallet.transfer(operations);
     }
 
-    function _tokenTransfer(
-        address sender,
-        address recipient,
-        uint256 amount,
-        bool takeFee
-    ) private {
-        if (!takeFee) removeAllFee();
-        _transferStandard(sender, recipient, amount);
-        if (!takeFee) restoreAllFee();
-    }
-
     function _transferStandard(
         address sender,
         address recipient,
-        uint256 tAmount
+        uint256 tAmount,
+        uint256 currentFee
     ) private {
         // _getTValues
-        uint256 tFee = tAmount.mul(_buyFee).mul(3).div(1000); // 15/10 * 3 = 4.5%
-        uint256 tLiquidityFee = tAmount.mul(_buyFee).mul(7).div(1000); // 15/10 * 7 = 10.5%
+        uint256 tFee = tAmount.mul(currentFee).mul(3).div(1000); // 15/10 * 3 = 4.5%
+        uint256 tLiquidityFee = tAmount.mul(currentFee).mul(7).div(1000); // 15/10 * 7 = 10.5%
         uint256 tTransferAmount = tAmount.sub(tLiquidityFee).sub(tFee);
         // _getRValues
         uint256 currentRate = _getRate();
@@ -541,20 +527,42 @@ contract Belka is Context, IERC20, Ownable {
         return (rSupply, tSupply);
     }
 
-    function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner {
-        require(maxTxPercent > 0, "Amount must be greater than 0");
-        _maxTxAmount = _tTotal.mul(maxTxPercent).div(10**2);
-        emit MaxTxAmountUpdated(_maxTxAmount);
-    }
-
     function setBuyFee(uint256 buyFee) external onlyOwner {
         _buyFee = buyFee;
         _previousBuyFee = buyFee;
+        emit BuyFeeUpdated(buyFee);
     }
 
     function setSellFee(uint256 sellFee) external onlyOwner {
         _sellFee = sellFee;
         _previousSellFee = sellFee;
+        emit SellFeeUpdated(sellFee);
+    }
+
+    function setMaxTxPercent(uint256 maxTxPercent, uint256 power) external onlyOwner {
+        require(maxTxPercent > 0, "Percent must be greater than 0");
+        require(power > 1 && power < 4, "Power must be betweeen 1 and 4");
+        _maxTxAmount = _tTotal.mul(maxTxPercent).div(10 ** power);
+        emit MaxTxAmountUpdated(_maxTxAmount);
+    }
+
+    function setNumTokensToAddToLiquidity(uint256 percent, uint256 power) external onlyOwner {
+        require(percent > 0, "Percent must be greater than 0");
+        require(power > 12, "Power must be greater than 12");
+        numTokensSellToAddToLiquidity = percent * (10 ** power);
+        emit NumTokensSoldUpdated(numTokensSellToAddToLiquidity);
+    }
+
+    function manualSwap() external onlyOwner {
+        require(!inSwap, "Already in swap");
+        uint256 amount = balanceOf(address(this));
+        if (amount > numTokensSellToAddToLiquidity) amount = numTokensSellToAddToLiquidity;
+        swapTokensForEth(amount);
+    }
+
+    function setSwapAndLiquifyEnabled(bool _enabled) external onlyOwner {
+        swapAndLiquifyEnabled = _enabled;
+        emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
     function withdrawResidualBnb(address newAddress) external onlyOwner {
